@@ -1,0 +1,55 @@
+function criarEventos() {
+  // Obtém a planilha
+  var spreadsheet = SpreadsheetApp.openById('codigo_da_planilha');
+  var sheet = spreadsheet.getSheetByName('pauta_agenda_google');
+
+  // Obtém os dados da planilha, pulando o cabeçalho
+  var range = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn());
+  var values = range.getValues();
+
+  // Itera pelas linhas da planilha
+  values.forEach(function (row) {
+    var dataHoraString = row[0];
+    var link = row[19];
+    var processo = row[2]; // nº do Processo
+    var valorDaCausa = row[6]; // Valor da causa
+    var restituicao = row[8]; // Restituição
+    var danoMoral = row[9]; // Danos Morais
+    var orientacoes = row[10]; // orientações
+    var preposto = row[11] ? row[11].toUpperCase() : ''; // Preposto
+    var advogado = row[12] ? row[12].toUpperCase() : ''; // Advogado
+
+    // Verificação e formatação dos valores monetários
+    var valorDaCausaFormatado = isNaN(parseFloat(valorDaCausa)) ? "SEM SUBSÍDIO" : parseFloat(valorDaCausa).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    var restituicaoFormatada = isNaN(parseFloat(restituicao)) ? "SEM SUBSÍDIO" : parseFloat(restituicao).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    var danoMoralFormatado = isNaN(parseFloat(danoMoral)) ? "SEM SUBSÍDIO" : parseFloat(danoMoral).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    // Verificando se a data, link, e se 'USUÁRIO' está presente em preposto ou advogado
+    if (dataHoraString && link && (preposto.includes("USUÁRIO") || advogado.includes("USUÁRIO"))) {
+      // Convertendo para objeto Date (se ainda não for)
+      var dataHoraInicio = new Date(dataHoraString);
+
+      // Calculando a data de término (20 minutos após o início)
+      var dataHoraFim = new Date(dataHoraInicio.getTime() + 20 * 60000);
+
+      // Criando a descrição do evento
+      var descricao = `Detalhes:\nProcesso nº: ${processo}\nValor da Causa: ${valorDaCausaFormatado}\nRestituição: ${restituicaoFormatada}\nDano Moral: ${danoMoralFormatado}\nOrientações: ${orientacoes}\nPreposto: ${preposto}\nAdvogado: ${advogado}`;
+
+      // Criando o evento no Google Calendar com notificação e descrição
+      var evento = CalendarApp.getDefaultCalendar().createEvent(
+        'AUDIÊNCIA',
+        dataHoraInicio,
+        dataHoraFim,
+        {
+          location: link,
+          description: descricao
+        }
+      );
+
+      // Configurando lembretes personalizados e desativando lembretes padrão
+      evento.removeAllReminders(); // Remove todos os lembretes padrão
+      evento.addPopupReminder(10); // Lembrete 10 minutos antes
+      evento.addPopupReminder(5); // Lembrete adicional 5 minutos antes
+    }
+  });
+}
